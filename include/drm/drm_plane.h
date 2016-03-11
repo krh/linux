@@ -34,7 +34,7 @@ struct drm_crtc;
  * @plane: backpointer to the plane
  * @crtc: currently bound CRTC, NULL if disabled
  * @fb: currently bound framebuffer
- * @fence: optional fence to wait for before scanning out @fb
+ * @in_fence: optional fence to wait for before scanning out @fb
  * @crtc_x: left position of visible portion of plane on crtc
  * @crtc_y: upper position of visible portion of plane on crtc
  * @crtc_w: width of visible portion of plane on crtc
@@ -59,7 +59,7 @@ struct drm_plane_state {
 
 	struct drm_crtc *crtc;   /* do not write directly, use drm_atomic_set_crtc_for_plane() */
 	struct drm_framebuffer *fb;  /* do not write directly, use drm_atomic_set_fb_for_plane() */
-	struct fence *fence;
+	struct fence *in_fence;
 
 	/* Signed dest location allows it to be partially off screen */
 	int32_t crtc_x, crtc_y;

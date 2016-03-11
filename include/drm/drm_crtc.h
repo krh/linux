@@ -1130,6 +1130,11 @@ struct drm_mode_config {
 	 */
 	struct drm_property *prop_fb_id;
 	/**
+	 * @prop_in_fence_fd: Sync File fd reprenseting the incomming fences
+	 * for this plane
+	 */
+	struct drm_property *prop_in_fence_fd;
+	/**
 	 * @prop_crtc_id: Default atomic plane property to specify the
 	 * &drm_crtc.
 	 */

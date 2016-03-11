@@ -1030,22 +1030,20 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 		if (!pre_swap)
 			plane_state = plane->state;
 
-		if (!plane_state->fence)
+		if (!plane_state->in_fence)
 			continue;
-
-		WARN_ON(!plane_state->fb);
 
 		/*
 		 * If waiting for fences pre-swap (ie: nonblock), userspace can
 		 * still interrupt the operation. Instead of blocking until the
 		 * timer expires, make the wait interruptible.
 		 */
-		ret = fence_wait(plane_state->fence, pre_swap);
+		ret = fence_wait(plane_state->in_fence, pre_swap);
 		if (ret)
 			return ret;
 
-		fence_put(plane_state->fence);
-		plane_state->fence = NULL;
+		fence_put(plane_state->in_fence);
+		plane_state->in_fence = NULL;
 	}
 
 	return 0;
@@ -3155,6 +3153,9 @@ void __drm_atomic_helper_plane_destroy_state(struct drm_plane_state *state)
 {
 	if (state->fb)
 		drm_framebuffer_unreference(state->fb);
+
+	if (state->in_fence)
+		fence_put(state->in_fence);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_destroy_state);
 
