@@ -66,6 +66,16 @@ struct sync_file_info {
 	__u64	sync_fence_info;
 };
 
+/**
+ * struct sync_empty_fence - create an empty fence ioctl
+ * @fence:	returns the fd of the new fence to userspace
+ * @flags:	merge_data flags
+ */
+struct sync_empty_fence {
+	__s32	fence;
+	__u32	flags;
+};
+
 #define SYNC_IOC_MAGIC		'>'
 
 /**
@@ -93,5 +103,11 @@ struct sync_file_info {
  * struct sync_fence_info, with detailed fence information.
  */
 #define SYNC_IOC_FILE_INFO	_IOWR(SYNC_IOC_MAGIC, 4, struct sync_file_info)
+
+/**
+ * DOC: SYNC_IOC_CREATE_FENCE - merge two fences
+ *
+ */
+#define SYNC_IOC_CREATE_FENCE	_IOWR(SYNC_IOC_MAGIC, 5, struct sync_empty_fence)
 
 #endif /* _UAPI_LINUX_SYNC_H */

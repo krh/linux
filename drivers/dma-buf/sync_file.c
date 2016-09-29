@@ -23,9 +23,12 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/anon_inodes.h>
+#include <linux/spinlock.h>
+#include <linux/miscdevice.h>
 #include <linux/sync_file.h>
 #include <uapi/linux/sync_file.h>
 
+struct class *sync_class;
 static const struct file_operations sync_file_fops;
 
 static struct sync_file *sync_file_alloc(void)
@@ -467,3 +470,104 @@ static const struct file_operations sync_file_fops = {
 	.compat_ioctl = sync_file_ioctl,
 };
 
+static const char *sync_get_driver_name(struct fence *fence)
+{
+	return "sync";
+}
+
+static const char *sync_get_timeline_name(struct fence *fence)
+{
+	return "unbound";
+}
+
+static bool sync_enable_signaling(struct fence *fence)
+{
+	return true;
+}
+
+static const struct fence_ops sync_ops = {
+	.get_driver_name = sync_get_driver_name,
+	.get_timeline_name = sync_get_timeline_name,
+	.enable_signaling = sync_enable_signaling,
+	.wait = fence_default_wait,
+};
+
+static spinlock_t lock;
+
+static long sync_ioctl_create_file(unsigned long arg)
+{
+	int fd = get_unused_fd_flags(O_CLOEXEC);
+	struct sync_empty_fence empty;
+	struct sync_file *sync_file;
+	struct fence *fence;
+	int ret;
+
+	if (fd < 0)
+		return fd;
+
+	fence = kmalloc(sizeof(*fence), GFP_KERNEL);
+
+	fence_init(fence, &sync_ops, &lock, fence_context_alloc(1), 1);
+
+	sync_file = sync_file_create(fence);
+	if (!sync_file) {
+		fence_put(fence);
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	empty.fence = fd;
+	empty.flags = 0;
+	if (copy_to_user((void __user *)arg, &empty, sizeof(empty))) {
+		fence_put(fence);
+		ret = -EFAULT;
+		goto err;
+	}
+
+	fd_install(fd, sync_file->file);
+
+	return 0;
+
+err:
+	put_unused_fd(fd);
+	return ret;
+}
+
+static int sync_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static long sync_ioctl(struct file *file, unsigned int cmd,
+			      unsigned long arg)
+{
+	switch (cmd) {
+	case SYNC_IOC_CREATE_FENCE:
+		return sync_ioctl_create_file(arg);
+
+	default:
+		return -ENOTTY;
+	}
+}
+
+static const struct file_operations sync_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.release = sync_release,
+	.unlocked_ioctl = sync_ioctl,
+	.compat_ioctl = sync_ioctl,
+};
+
+static struct miscdevice sync_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "sync",
+	.fops = &sync_fops,
+};
+
+static int __init sync_init(void)
+{
+	spin_lock_init(&lock);
+	return misc_register(&sync_dev);
+}
+
+device_initcall(sync_init);
