@@ -3059,6 +3059,9 @@ void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 	drm_property_unreference_blob(state->degamma_lut);
 	drm_property_unreference_blob(state->ctm);
 	drm_property_unreference_blob(state->gamma_lut);
+
+	if (state->out_fence)
+		fence_put(state->out_fence);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_destroy_state);
 

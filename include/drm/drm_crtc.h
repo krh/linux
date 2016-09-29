@@ -32,6 +32,8 @@
 #include <linux/fb.h>
 #include <linux/hdmi.h>
 #include <linux/media-bus-format.h>
+#include <linux/srcu.h>
+#include <linux/fence.h>
 #include <uapi/drm/drm_mode.h>
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
@@ -160,6 +162,8 @@ struct drm_crtc_state {
 	struct drm_property_blob *gamma_lut;
 
 	struct drm_pending_vblank_event *event;
+
+	struct fence *out_fence;
 
 	struct drm_atomic_state *state;
 };
@@ -1134,6 +1138,11 @@ struct drm_mode_config {
 	 * for this plane
 	 */
 	struct drm_property *prop_in_fence_fd;
+	/**
+	 * @prop_out_fence_fd: Sync File fd reprenseting the outcoming fences
+	 * for this plane
+	 */
+	struct drm_property *prop_out_fence_fd;
 	/**
 	 * @prop_crtc_id: Default atomic plane property to specify the
 	 * &drm_crtc.

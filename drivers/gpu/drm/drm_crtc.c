@@ -213,6 +213,8 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
 		drm_object_attach_property(&crtc->base, config->prop_active, 0);
 		drm_object_attach_property(&crtc->base, config->prop_mode_id, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->prop_out_fence_fd, -1);
 	}
 
 	return 0;
@@ -370,6 +372,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.prop_in_fence_fd = prop;
+
+	prop = drm_property_create_signed_range(dev, DRM_MODE_PROP_ATOMIC,
+			"OUT_FENCE_FD", -1, INT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_out_fence_fd = prop;
 
 	prop = drm_property_create_object(dev, DRM_MODE_PROP_ATOMIC,
 			"CRTC_ID", DRM_MODE_OBJECT_CRTC);

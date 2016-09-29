@@ -494,6 +494,17 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
+	} else if (property == config->prop_out_fence_fd) {
+		if (U642I64(val) == -1)
+			return 0;
+
+		if (state->out_fence)
+			fence_put(state->out_fence);
+
+		state->out_fence = sync_file_get_fence(val);
+		if (!state->out_fence)
+			return -EINVAL;
+
 	} else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	else
@@ -536,6 +547,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = (state->ctm) ? state->ctm->base.id : 0;
 	else if (property == config->gamma_lut_property)
 		*val = (state->gamma_lut) ? state->gamma_lut->base.id : 0;
+	else if (property == config->prop_out_fence_fd)
+		*val = -1;
 	else if (crtc->funcs->atomic_get_property)
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
 	else
@@ -1478,11 +1491,9 @@ EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
  */
 
 static struct drm_pending_vblank_event *create_vblank_event(
-		struct drm_device *dev, struct drm_file *file_priv,
-		struct fence *fence, uint64_t user_data)
+		struct drm_device *dev, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
-	int ret;
 
 	e = kzalloc(sizeof *e, GFP_KERNEL);
 	if (!e)
@@ -1491,17 +1502,6 @@ static struct drm_pending_vblank_event *create_vblank_event(
 	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = user_data;
-
-	if (file_priv) {
-		ret = drm_event_reserve_init(dev, file_priv, &e->base,
-					     &e->event.base);
-		if (ret) {
-			kfree(e);
-			return NULL;
-		}
-	}
-
-	e->base.fence = fence;
 
 	return e;
 }
@@ -1738,18 +1738,35 @@ retry:
 		drm_mode_object_unreference(obj);
 	}
 
-	if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			struct drm_pending_vblank_event *e;
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		struct drm_pending_vblank_event *e;
 
-			e = create_vblank_event(dev, file_priv, NULL,
-						arg->user_data);
+		if ((file_priv && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) ||
+		    (crtc_state->out_fence != NULL)) {
+
+			e = create_vblank_event(dev, arg->user_data);
 			if (!e) {
 				ret = -ENOMEM;
 				goto out;
 			}
 
 			crtc_state->event = e;
+		}
+
+		if (file_priv && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+
+			ret = drm_event_reserve_init(dev, file_priv, &e->base,
+						     &e->event.base);
+			if (ret) {
+				kfree(e);
+				crtc_state->event = NULL;
+				goto out;
+			}
+		}
+
+		if (crtc_state->out_fence != NULL) {
+			e->base.fence = crtc_state->out_fence;
+			crtc_state->out_fence = NULL;
 		}
 	}
 
