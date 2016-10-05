@@ -493,6 +493,25 @@ static const struct fence_ops sync_ops = {
 	.wait = fence_default_wait,
 };
 
+
+/**
+ * sync_file_get_fence_set() - copies a fence set from userspace
+ * @uaddr:	userspace address
+ *
+ * Copies a fence set from userspace.
+ */
+void *sync_file_get_fence_set(void __user *uaddr)
+{
+	struct sync_file_fence_set set;
+
+	if (copy_from_user(&set, uaddr, sizeof(set)))
+		return ERR_PTR(-EFAULT);
+
+	return NULL;
+}
+EXPORT_SYMBOL(sync_file_get_fence_set);
+
+
 static DEFINE_SPINLOCK(lock);
 
 SYSCALL_DEFINE1(syncfd_create, unsigned int, flags)

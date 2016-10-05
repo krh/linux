@@ -104,6 +104,13 @@ struct sync_empty_fence {
  */
 #define SYNC_IOC_FILE_INFO	_IOWR(SYNC_IOC_MAGIC, 4, struct sync_file_info)
 
+struct sync_file_fence_set {
+	__u32 num_in_fences;
+	__u32 num_out_fences;
+	__u64 in_fences;
+	__u64 out_fences;
+};
+
 /* flags for syncfd_create(2) (unsigned int) */
 #define SYNCFD_CLOEXEC		0x0001U
 

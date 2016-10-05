@@ -49,5 +49,6 @@ struct sync_file {
 
 struct sync_file *sync_file_create(struct fence *fence);
 struct fence *sync_file_get_fence(int fd);
+void *sync_file_get_fence_set(void __user *uaddr);
 
 #endif /* _LINUX_SYNC_H */
