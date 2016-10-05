@@ -104,10 +104,8 @@ struct sync_empty_fence {
  */
 #define SYNC_IOC_FILE_INFO	_IOWR(SYNC_IOC_MAGIC, 4, struct sync_file_info)
 
-/**
- * DOC: SYNC_IOC_CREATE_FENCE - merge two fences
- *
- */
-#define SYNC_IOC_CREATE_FENCE	_IOWR(SYNC_IOC_MAGIC, 5, struct sync_empty_fence)
+/* flags for syncfd_create(2) (unsigned int) */
+#define SYNCFD_CLOEXEC		0x0001U
+
 
 #endif /* _UAPI_LINUX_SYNC_H */

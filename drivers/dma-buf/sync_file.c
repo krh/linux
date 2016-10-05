@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/sync_file.h>
+#include <linux/syscalls.h>
 #include <uapi/linux/sync_file.h>
 
 struct class *sync_class;
@@ -492,82 +493,44 @@ static const struct fence_ops sync_ops = {
 	.wait = fence_default_wait,
 };
 
-static spinlock_t lock;
+static DEFINE_SPINLOCK(lock);
 
-static long sync_ioctl_create_file(unsigned long arg)
+SYSCALL_DEFINE1(syncfd_create, unsigned int, flags)
 {
-	int fd = get_unused_fd_flags(O_CLOEXEC);
-	struct sync_empty_fence empty;
 	struct sync_file *sync_file;
 	struct fence *fence;
-	int ret;
+	int fd, ret;
+	const unsigned int valid_flags = SYNCFD_CLOEXEC;
 
-	if (fd < 0)
-		return fd;
+	if (flags & ~valid_flags)
+		return -EINVAL;
 
 	fence = kmalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return -ENOMEM;
 
 	fence_init(fence, &sync_ops, &lock, fence_context_alloc(1), 1);
 
-	sync_file = sync_file_create(fence);
-	if (!sync_file) {
-		fence_put(fence);
-		ret = -ENOMEM;
-		goto err;
+	fd = get_unused_fd_flags((flags & SYNCFD_CLOEXEC) ? O_CLOEXEC : 0);
+	if (fd < 0) {
+		ret = fd;
+		goto err_fence;
 	}
 
-	empty.fence = fd;
-	empty.flags = 0;
-	if (copy_to_user((void __user *)arg, &empty, sizeof(empty))) {
-		fence_put(fence);
-		ret = -EFAULT;
-		goto err;
+	sync_file = sync_file_create(fence);
+	if (!sync_file) {
+		ret = -ENOMEM;
+		goto err_fd;
 	}
 
 	fd_install(fd, sync_file->file);
 
-	return 0;
+	return fd;
 
-err:
+err_fd:
 	put_unused_fd(fd);
+err_fence:
+	fence_put(fence);
+
 	return ret;
 }
-
-static int sync_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static long sync_ioctl(struct file *file, unsigned int cmd,
-			      unsigned long arg)
-{
-	switch (cmd) {
-	case SYNC_IOC_CREATE_FENCE:
-		return sync_ioctl_create_file(arg);
-
-	default:
-		return -ENOTTY;
-	}
-}
-
-static const struct file_operations sync_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.release = sync_release,
-	.unlocked_ioctl = sync_ioctl,
-	.compat_ioctl = sync_ioctl,
-};
-
-static struct miscdevice sync_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "sync",
-	.fops = &sync_fops,
-};
-
-static int __init sync_init(void)
-{
-	spin_lock_init(&lock);
-	return misc_register(&sync_dev);
-}
-
-device_initcall(sync_init);
