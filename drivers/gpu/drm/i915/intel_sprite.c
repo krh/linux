@@ -989,6 +989,11 @@ static const uint32_t ilk_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static const struct drm_format_modifier ilk_plane_format_modifiers[] = {
+	{ .formats = 0x1f, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0x1f, .modifier = I915_FORMAT_MOD_X_TILED }
+};
+
 static const uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
@@ -996,6 +1001,11 @@ static const uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
+};
+
+static const struct drm_format_modifier snb_plane_format_modifiers[] = {
+	{ .formats = 0x3f, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0x3f, .modifier = I915_FORMAT_MOD_X_TILED }
 };
 
 static const uint32_t vlv_plane_formats[] = {
@@ -1012,6 +1022,11 @@ static const uint32_t vlv_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static const struct drm_format_modifier vlv_plane_format_modifiers[] = {
+	{ .formats = 0x7ff, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0x7ff, .modifier = I915_FORMAT_MOD_X_TILED }
+};
+
 static uint32_t skl_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_ABGR8888,
@@ -1024,6 +1039,12 @@ static uint32_t skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static const struct drm_format_modifier skl_plane_format_modifiers[] = {
+	{ .formats = 0x1ff, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0x1ff, .modifier = I915_FORMAT_MOD_X_TILED },
+	{ .formats = 0x01f, .modifier = I915_FORMAT_MOD_Y_TILED }
+};
+
 struct intel_plane *
 intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, int plane)
@@ -1032,8 +1053,9 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	struct intel_plane_state *state = NULL;
 	unsigned long possible_crtcs;
 	const uint32_t *plane_formats;
+	const struct drm_format_modifier *modifiers;
 	unsigned int supported_rotations;
-	int num_plane_formats;
+	int num_plane_formats, num_modifiers;
 	int ret;
 
 	intel_plane = kzalloc(sizeof(*intel_plane), GFP_KERNEL);
@@ -1058,6 +1080,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
+		modifiers = skl_plane_format_modifiers;
+		num_modifiers = ARRAY_SIZE(skl_plane_format_modifiers);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_plane->can_scale = false;
 		intel_plane->max_downscale = 1;
@@ -1067,6 +1091,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_formats = vlv_plane_formats;
 		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
+		modifiers = vlv_plane_format_modifiers;
+		num_modifiers = ARRAY_SIZE(vlv_plane_format_modifiers);
 	} else if (INTEL_GEN(dev_priv) >= 7) {
 		if (IS_IVYBRIDGE(dev_priv)) {
 			intel_plane->can_scale = true;
@@ -1081,6 +1107,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_formats = snb_plane_formats;
 		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+		modifiers = snb_plane_format_modifiers;
+		num_modifiers = ARRAY_SIZE(snb_plane_format_modifiers);
 	} else {
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
@@ -1091,9 +1119,13 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		if (IS_GEN6(dev_priv)) {
 			plane_formats = snb_plane_formats;
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+			modifiers = snb_plane_format_modifiers;
+			num_modifiers = ARRAY_SIZE(snb_plane_format_modifiers);
 		} else {
 			plane_formats = ilk_plane_formats;
 			num_plane_formats = ARRAY_SIZE(ilk_plane_formats);
+			modifiers = ilk_plane_format_modifiers;
+			num_modifiers = ARRAY_SIZE(ilk_plane_format_modifiers);
 		}
 	}
 
@@ -1121,12 +1153,14 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
 					       possible_crtcs, &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
+					       modifiers, num_modifiers,
 					       DRM_PLANE_TYPE_OVERLAY,
 					       "plane %d%c", plane + 2, pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
 					       possible_crtcs, &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
+					       modifiers, num_modifiers,
 					       DRM_PLANE_TYPE_OVERLAY,
 					       "sprite %c", sprite_name(pipe, plane));
 	if (ret)

@@ -61,6 +61,11 @@ static const uint32_t i8xx_primary_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
+static const struct drm_format_modifier i8xx_format_modifiers[] = {
+	{ .formats = 0x0f, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0x0f, .modifier = I915_FORMAT_MOD_X_TILED }
+};
+
 /* Primary plane formats for gen >= 4 */
 static const uint32_t i965_primary_formats[] = {
 	DRM_FORMAT_C8,
@@ -69,6 +74,11 @@ static const uint32_t i965_primary_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_XBGR2101010,
+};
+
+static const struct drm_format_modifier i965_format_modifiers[] = {
+	{ .formats = 0x3f, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0x3f, .modifier = I915_FORMAT_MOD_X_TILED }
 };
 
 static const uint32_t skl_primary_formats[] = {
@@ -84,6 +94,12 @@ static const uint32_t skl_primary_formats[] = {
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
+};
+
+static const struct drm_format_modifier skl_format_modifiers[] = {
+	{ .formats = 0xfff, .modifier = DRM_FORMAT_MOD_NONE },
+	{ .formats = 0xff, .modifier = I915_FORMAT_MOD_X_TILED },
+	{ .formats = 0x3f, .modifier = I915_FORMAT_MOD_Y_TILED }
 };
 
 /* Cursor formats */
@@ -14962,6 +14978,8 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	const uint32_t *intel_primary_formats;
 	unsigned int supported_rotations;
 	unsigned int num_formats;
+	const struct drm_format_modifier *intel_format_modifiers;
+	unsigned int num_format_modifiers;
 	int ret;
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
@@ -14999,24 +15017,32 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
+		intel_format_modifiers = skl_format_modifiers;
+		num_format_modifiers = ARRAY_SIZE(skl_format_modifiers);
 
 		primary->update_plane = skylake_update_primary_plane;
 		primary->disable_plane = skylake_disable_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
+		intel_format_modifiers = i965_format_modifiers;
+		num_format_modifiers = ARRAY_SIZE(i965_format_modifiers);
 
 		primary->update_plane = ironlake_update_primary_plane;
 		primary->disable_plane = i9xx_disable_primary_plane;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
+		intel_format_modifiers = i965_format_modifiers;
+		num_format_modifiers = ARRAY_SIZE(i965_format_modifiers);
 
 		primary->update_plane = i9xx_update_primary_plane;
 		primary->disable_plane = i9xx_disable_primary_plane;
 	} else {
 		intel_primary_formats = i8xx_primary_formats;
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
+		intel_format_modifiers = i8xx_format_modifiers;
+		num_format_modifiers = ARRAY_SIZE(i8xx_format_modifiers);
 
 		primary->update_plane = i9xx_update_primary_plane;
 		primary->disable_plane = i9xx_disable_primary_plane;
@@ -15026,21 +15052,24 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
-					       NULL, 0,
+					       intel_format_modifiers,
+					       num_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane 1%c", pipe_name(pipe));
 	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
-					       NULL, 0,
+					       intel_format_modifiers,
+					       num_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
-					       NULL, 0,
+					       intel_format_modifiers,
+					       num_format_modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane %c", plane_name(primary->plane));
 	if (ret)
