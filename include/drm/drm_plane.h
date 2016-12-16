@@ -483,6 +483,9 @@ struct drm_plane {
 	unsigned int format_count;
 	bool format_default;
 
+	struct drm_format_modifier *format_modifiers;
+	unsigned int format_modifier_count;
+
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 
@@ -510,13 +513,15 @@ struct drm_plane {
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
-extern __printf(8, 9)
+extern __printf(10, 11)
 int drm_universal_plane_init(struct drm_device *dev,
 			     struct drm_plane *plane,
 			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats,
 			     unsigned int format_count,
+			     const struct drm_format_modifier *format_modifiers,
+			     unsigned int format_modifier_count,
 			     enum drm_plane_type type,
 			     const char *name, ...);
 extern int drm_plane_init(struct drm_device *dev,

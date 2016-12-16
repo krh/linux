@@ -120,6 +120,8 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 			struct drm_simple_display_pipe *pipe,
 			const struct drm_simple_display_pipe_funcs *funcs,
 			const uint32_t *formats, unsigned int format_count,
+			const struct drm_format_modifier *format_modifiers,
+			unsigned int format_modifier_count,
 			struct drm_connector *connector);
 
 #endif /* __LINUX_DRM_SIMPLE_KMS_HELPER_H */
