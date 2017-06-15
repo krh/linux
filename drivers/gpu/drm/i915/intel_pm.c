@@ -4004,13 +4004,15 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 	struct intel_plane *intel_plane;
 	struct skl_plane_wm *wm;
 	int level, max_level = ilk_wm_max_level(dev_priv);
-	int ret;
+	int i, j, ret;
 
 	/*
 	 * We'll only calculate watermarks for planes that are actually
 	 * enabled, so make sure all other planes are set as disabled.
 	 */
-	memset(pipe_wm->planes, 0, sizeof(pipe_wm->planes));
+	for (i = 0; i < I915_MAX_PLANES) {
+		for (j = 0; j < ARRAY_SIZE(pipe_wm->planes[0].wm); j++)
+			pipe_wm->planes[i].wm[j].plane_en = false;
 
 	for_each_intel_plane_mask(&dev_priv->drm,
 				  intel_plane,
