@@ -86,6 +86,11 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 		return -E2BIG;
 	}
 
+	if (test_bit(0, &chip->is_suspended)) {
+		dev_warn(&chip->dev, "blocking transmit while suspended\n");
+		return -EAGAIN;
+	}
+
 	rc = chip->ops->send(chip, buf, count);
 	if (rc < 0) {
 		if (rc != -EPIPE)
@@ -403,13 +408,18 @@ int tpm_pm_suspend(struct device *dev)
 		return 0;
 
 	if (!tpm_chip_start(chip)) {
-		if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 			tpm2_shutdown(chip, TPM2_SU_STATE);
-		else
+			set_bit(0, &chip->is_suspended);
+		} else {
 			rc = tpm1_pm_suspend(chip, tpm_suspend_pcr);
+		}
 
 		tpm_chip_stop(chip);
 	}
+
+	if (!rc)
+		set_bit(0, &chip->is_suspended);
 
 	return rc;
 }
@@ -425,6 +435,8 @@ int tpm_pm_resume(struct device *dev)
 
 	if (chip == NULL)
 		return -ENODEV;
+
+	clear_bit(0, &chip->is_suspended);
 
 	return 0;
 }
